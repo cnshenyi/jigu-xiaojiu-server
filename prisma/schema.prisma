@@ -11,16 +11,17 @@ datasource db {
 }
 
 model User {
-  id           String      @id @default(uuid())
-  name         String      @db.VarChar(50)
-  phone        String      @unique @db.VarChar(20)
-  passwordHash String      @map("password_hash") @db.VarChar(255)
-  avatar       String      @default("male") @db.VarChar(20)
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  id           String       @id @default(uuid())
+  name         String       @db.VarChar(50)
+  phone        String       @unique @db.VarChar(20)
+  passwordHash String       @map("password_hash") @db.VarChar(255)
+  avatar       String       @default("male") @db.VarChar(20)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
   
   funds        UserFund[]
   groups       UserGroup[]
+  inviteCode   InviteCode[]
   
   @@map("users")
 }
@@ -50,4 +51,17 @@ model UserGroup {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("user_groups")
+}
+
+model InviteCode {
+  id        String    @id @default(uuid())
+  code      String    @unique @db.VarChar(10)
+  usedById  String?   @map("used_by_id")
+  usedAt    DateTime? @map("used_at")
+  note      String?   @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at")
+  
+  usedBy    User?     @relation(fields: [usedById], references: [id])
+  
+  @@map("invite_codes")
 }

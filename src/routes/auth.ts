@@ -9,11 +9,28 @@ const router = Router()
 // 注册
 router.post('/register', async (req, res) => {
   try {
-    const { name, phone, password, avatar = 'male' } = req.body
+    const { name, phone, password, avatar = 'male', inviteCode } = req.body
     
     // 验证必填字段
     if (!name || !phone || !password) {
       return res.status(400).json({ error: '请填写完整信息' })
+    }
+    
+    // 验证邀请码
+    if (!inviteCode) {
+      return res.status(400).json({ error: '请输入邀请码' })
+    }
+    
+    const invite = await prisma.inviteCode.findUnique({
+      where: { code: inviteCode.toUpperCase() }
+    })
+    
+    if (!invite) {
+      return res.status(400).json({ error: '邀请码无效' })
+    }
+    
+    if (invite.usedById) {
+      return res.status(400).json({ error: '邀请码已被使用' })
     }
     
     // 验证手机号格式
@@ -45,6 +62,15 @@ router.post('/register', async (req, res) => {
         phone,
         passwordHash,
         avatar
+      }
+    })
+    
+    // 标记邀请码已使用
+    await prisma.inviteCode.update({
+      where: { code: inviteCode.toUpperCase() },
+      data: {
+        usedById: user.id,
+        usedAt: new Date()
       }
     })
     
