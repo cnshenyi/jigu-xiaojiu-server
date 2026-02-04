@@ -75,6 +75,8 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: '请输入手机号和密码' })
     }
     
+    console.log('Login attempt for phone:', phone)
+    
     // 查找用户
     const user = await prisma.user.findUnique({
       where: { phone }
@@ -103,9 +105,9 @@ router.post('/login', async (req, res) => {
         avatar: user.avatar
       }
     })
-  } catch (error) {
-    console.error('Login error:', error)
-    res.status(500).json({ error: '登录失败，请稍后重试' })
+  } catch (error: any) {
+    console.error('Login error:', error.message || error)
+    res.status(500).json({ error: '登录失败，请稍后重试', detail: error.message })
   }
 })
 
