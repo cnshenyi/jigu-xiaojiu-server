@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String      @db.VarChar(50)
+  phone        String      @unique @db.VarChar(20)
+  passwordHash String      @map("password_hash") @db.VarChar(255)
+  avatar       String      @default("male") @db.VarChar(20)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  
+  funds        UserFund[]
+  groups       UserGroup[]
+  
+  @@map("users")
+}
+
+model UserFund {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  fundCode  String   @map("fund_code") @db.VarChar(10)
+  fundName  String   @map("fund_name") @db.VarChar(100)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, fundCode])
+  @@map("user_funds")
+}
+
+model UserGroup {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  name      String   @db.VarChar(50)
+  fundCodes String[] @map("fund_codes")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("user_groups")
+}
