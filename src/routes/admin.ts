@@ -110,4 +110,64 @@ router.delete('/invite-codes/:code', async (req, res) => {
   }
 })
 
+// 发送系统消息
+router.post('/send-message', async (req, res) => {
+  try {
+    const { title, content, type = 'system', phone } = req.body
+    
+    if (!title || !content) {
+      return res.status(400).json({ error: '标题和内容不能为���' })
+    }
+    
+    let userId = null
+    
+    // 如果指定了手机号，查找用户
+    if (phone) {
+      const user = await prisma.user.findUnique({
+        where: { phone }
+      })
+      if (!user) {
+        return res.status(404).json({ error: '用户不存在' })
+      }
+      userId = user.id
+    }
+    
+    const message = await prisma.message.create({
+      data: {
+        userId,
+        type,
+        title,
+        content
+      }
+    })
+    
+    res.json({
+      message: '发送成功',
+      data: message
+    })
+  } catch (error) {
+    console.error('Send message error:', error)
+    res.status(500).json({ error: '发送消息失败' })
+  }
+})
+
+// 获取所有用户
+router.get('/users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    res.json(users)
+  } catch (error) {
+    console.error('Get users error:', error)
+    res.status(500).json({ error: '获取用户列表失败' })
+  }
+})
+
 export default router
