@@ -167,6 +167,9 @@ export async function* chatStream(
     { role: 'user', content: message }
   ]
 
+  console.log('[doubao] 正在调用豆包 API...')
+  const startTime = Date.now()
+  
   const stream = await doubao.chat.completions.create({
     model: MODEL,
     messages,
@@ -175,10 +178,22 @@ export async function* chatStream(
     stream: true
   })
 
+  console.log('[doubao] API 连接成功，耗时:', Date.now() - startTime, 'ms')
+  
+  let chunkCount = 0
+  let firstChunkTime = 0
+  
   for await (const chunk of stream) {
     const content = chunk.choices[0]?.delta?.content
     if (content) {
+      chunkCount++
+      if (chunkCount === 1) {
+        firstChunkTime = Date.now() - startTime
+        console.log('[doubao] 收到第一个 chunk，总耗时:', firstChunkTime, 'ms')
+      }
       yield content
     }
   }
+  
+  console.log('[doubao] 流式输出完成，共', chunkCount, '个 chunk，总耗时:', Date.now() - startTime, 'ms')
 }
