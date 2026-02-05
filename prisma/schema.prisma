@@ -65,3 +65,38 @@ model InviteCode {
   
   @@map("invite_codes")
 }
+
+// 消息表
+model Message {
+  id        String   @id @default(uuid())
+  userId    String?  @map("user_id")  // null 表示系统广播消息
+  type      String   @db.VarChar(20)  // rise/fall/alert/system
+  title     String   @db.VarChar(100)
+  content   String
+  fundCode  String?  @map("fund_code") @db.VarChar(10)
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+// 用户提醒设置表
+model AlertSetting {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  fundCode       String   @map("fund_code") @db.VarChar(10)
+  fundName       String   @map("fund_name") @db.VarChar(100)
+  riseThreshold  Float?   @map("rise_threshold")  // 涨幅阈值 %
+  fallThreshold  Float?   @map("fall_threshold")  // 跌幅阈值 %
+  targetNavHigh  Float?   @map("target_nav_high") // 目标净值上限
+  targetNavLow   Float?   @map("target_nav_low")  // 目标净值下限
+  enabled        Boolean  @default(true)
+  lastTriggered  DateTime? @map("last_triggered") // 上次触发时间，防止重复提醒
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  
+  @@unique([userId, fundCode])
+  @@map("alert_settings")
+}
