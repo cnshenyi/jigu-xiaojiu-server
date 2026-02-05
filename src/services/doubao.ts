@@ -93,25 +93,16 @@ export interface FundContext {
   jzrq?: string     // 净值日期
 }
 
-// AI 聊天
-export async function chat(
-  message: string, 
-  fundContext: FundContext[],
-  history: ChatMessage[] = []
-): Promise<string> {
-  console.log('[doubao] 开始聊天，模型:', MODEL)
-  console.log('[doubao] 用户消息:', message)
-  console.log('[doubao] 持仓数量:', fundContext.length)
-  
-  // 构建系统提示词
-  const systemPrompt = `你是"小九"，基估小99的AI助手，专门帮助用户分析基金持仓。
+// 构建系统提示词
+function buildSystemPrompt(fundContext: FundContext[]): string {
+  return `你是"小九"，基估小99的AI助手，专门帮助用户分析基金持仓。
 
 ## 你的性格
 - 专业但亲切，像一个懂投资的朋友
 - 回答简洁有条理，避免啰嗦
 - 适当使用 emoji 让对话更生动
 
-## 用户当前持仓
+## 用户当前���仓
 ${fundContext.length > 0 ? fundContext.map(f => 
   `- ${f.name}(${f.code}): 估值 ${f.gsz || '--'}, 涨跌 ${f.gszzl || '--'}%`
 ).join('\n') : '用户暂无持仓'}
@@ -121,6 +112,19 @@ ${fundContext.length > 0 ? fundContext.map(f =>
 - 如果用户问的基金不在持仓中，可以提供一般性建议
 - 不要编造数据，如果不确定就说明
 - 投资建议要谨慎，提醒用户注意风险`
+}
+
+// AI 聊天（非流式，保留兼容）
+export async function chat(
+  message: string, 
+  fundContext: FundContext[],
+  history: ChatMessage[] = []
+): Promise<string> {
+  console.log('[doubao] 开始聊天，模型:', MODEL)
+  console.log('[doubao] 用户消息:', message)
+  console.log('[doubao] 持仓数量:', fundContext.length)
+  
+  const systemPrompt = buildSystemPrompt(fundContext)
 
   try {
     const messages: any[] = [
@@ -142,5 +146,39 @@ ${fundContext.length > 0 ? fundContext.map(f =>
   } catch (error: any) {
     console.error('[doubao] 聊天失败:', error.message)
     throw error
+  }
+}
+
+// AI 聊天（流式）
+export async function* chatStream(
+  message: string, 
+  fundContext: FundContext[],
+  history: ChatMessage[] = []
+): AsyncGenerator<string, void, unknown> {
+  console.log('[doubao] 开始流式聊天，模型:', MODEL)
+  console.log('[doubao] 用户消息:', message)
+  console.log('[doubao] 持仓数量:', fundContext.length)
+  
+  const systemPrompt = buildSystemPrompt(fundContext)
+
+  const messages: any[] = [
+    { role: 'system', content: systemPrompt },
+    ...history.map(h => ({ role: h.role, content: h.content })),
+    { role: 'user', content: message }
+  ]
+
+  const stream = await doubao.chat.completions.create({
+    model: MODEL,
+    messages,
+    max_tokens: 1000,
+    temperature: 0.7,
+    stream: true
+  })
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content
+    if (content) {
+      yield content
+    }
   }
 }
