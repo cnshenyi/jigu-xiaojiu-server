@@ -8,6 +8,7 @@ import groupRoutes from './routes/group'
 import adminRoutes from './routes/admin'
 import messageRoutes from './routes/messages'
 import alertRoutes from './routes/alerts'
+import { startAlertChecker } from './services/alertChecker'
 
 dotenv.config()
 
@@ -37,6 +38,9 @@ app.get('/api/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`)
+  
+  // 启动提醒检查服务
+  startAlertChecker()
 })
 
 export default app

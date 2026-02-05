@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import prisma from '../utils/prisma'
 import { sendSSEToUser, broadcastSSE } from './messages'
+import { checkAllAlerts } from '../services/alertChecker'
 
 const router = Router()
 
@@ -182,6 +183,17 @@ router.get('/users', async (req, res) => {
   } catch (error) {
     console.error('Get users error:', error)
     res.status(500).json({ error: '获取用户列表失败' })
+  }
+})
+
+// 手动触发提醒检查（测试用）
+router.post('/check-alerts', async (req, res) => {
+  try {
+    await checkAllAlerts()
+    res.json({ message: '提醒检查已触发' })
+  } catch (error) {
+    console.error('Check alerts error:', error)
+    res.status(500).json({ error: '触发提醒检查失败' })
   }
 })
 
