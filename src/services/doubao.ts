@@ -3,7 +3,8 @@ import OpenAI from 'openai'
 // 豆包 API 配置（兼容 OpenAI 接口）
 const doubao = new OpenAI({
   apiKey: process.env.DOUBAO_API_KEY || '',
-  baseURL: 'https://ark.cn-beijing.volces.com/api/v3'
+  baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
+  timeout: 30000 // 30 秒超时
 })
 
 // 豆包视觉模型 endpoint
@@ -11,6 +12,10 @@ const VISION_MODEL = process.env.DOUBAO_VISION_MODEL || 'doubao-1-5-vision-pro-3
 
 // 从图片中识别基金代码
 export async function recognizeFundsFromImage(imageBase64: string): Promise<Array<{ code: string; name: string }>> {
+  console.log('[doubao] 开始识别图片，模型:', VISION_MODEL)
+  console.log('[doubao] API Key 已配置:', !!process.env.DOUBAO_API_KEY)
+  console.log('[doubao] 图片大小:', Math.round(imageBase64.length / 1024), 'KB')
+  
   try {
     const response = await doubao.chat.completions.create({
       model: VISION_MODEL,
@@ -42,6 +47,7 @@ export async function recognizeFundsFromImage(imageBase64: string): Promise<Arra
     })
 
     const content = response.choices[0]?.message?.content || '[]'
+    console.log('[doubao] AI 返回内容:', content)
     
     // 尝试解析 JSON
     try {
@@ -50,20 +56,23 @@ export async function recognizeFundsFromImage(imageBase64: string): Promise<Arra
       if (jsonMatch) {
         const funds = JSON.parse(jsonMatch[0])
         // 验证格式
-        return funds.filter((f: any) => 
+        const validFunds = funds.filter((f: any) => 
           f.code && /^\d{6}$/.test(f.code)
         ).map((f: any) => ({
           code: f.code,
           name: f.name || ''
         }))
+        console.log('[doubao] 识别到基金:', validFunds.length, '只')
+        return validFunds
       }
     } catch (parseError) {
-      console.error('解析 AI 返回的 JSON 失败:', parseError)
+      console.error('[doubao] 解析 AI 返回的 JSON 失败:', parseError)
     }
     
     return []
-  } catch (error) {
-    console.error('调用豆包 API 失败:', error)
+  } catch (error: any) {
+    console.error('[doubao] 调用豆包 API 失败:', error.message)
+    console.error('[doubao] 错误详情:', error.response?.data || error)
     throw error
   }
 }
