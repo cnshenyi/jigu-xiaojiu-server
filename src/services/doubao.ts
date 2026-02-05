@@ -137,8 +137,10 @@ export async function chat(
       model: MODEL,
       messages,
       max_tokens: 1000,
-      temperature: 0.7
-    })
+      temperature: 0.7,
+      // 关闭深度思考，加快响应速度
+      thinking: { type: 'disabled' }
+    } as any)
 
     const reply = response.choices[0]?.message?.content || '抱歉，我没有理解你的问题。'
     console.log('[doubao] AI 回复:', reply.substring(0, 100) + '...')
@@ -170,12 +172,15 @@ export async function* chatStream(
   console.log('[doubao] 正在调用豆包 API...')
   const startTime = Date.now()
   
+  // @ts-ignore - thinking 是豆包特有参数，OpenAI SDK 类型定义中没有
   const stream = await doubao.chat.completions.create({
     model: MODEL,
     messages,
     max_tokens: 1000,
     temperature: 0.7,
-    stream: true
+    stream: true,
+    // 关闭深度思考，加快响应速度
+    thinking: { type: 'disabled' }
   })
 
   console.log('[doubao] API 连接成功，耗时:', Date.now() - startTime, 'ms')
