@@ -1,6 +1,7 @@
-import { Router, Response } from 'express'
+import { Router, Response, Request } from 'express'
 import { PrismaClient } from '@prisma/client'
 import { AuthRequest, authMiddleware } from '../middleware/auth'
+import { verifyToken } from '../utils/jwt'
 
 const router = Router()
 const prisma = new PrismaClient()
@@ -25,24 +26,39 @@ export function broadcastSSE(data: any) {
   })
 }
 
-// SSE 连接端点
-router.get('/stream', authMiddleware, (req: AuthRequest, res: Response) => {
-  const userId = req.user!.userId
+// SSE 连接端点 - 使用 query 参数传 token（因为 EventSource 不支持 headers）
+router.get('/stream', (req: Request, res: Response) => {
+  const token = req.query.token as string
+  
+  if (!token) {
+    return res.status(401).json({ error: '未提供认证信息' })
+  }
+  
+  let userId: string
+  try {
+    const payload = verifyToken(token)
+    userId = payload.userId
+  } catch (error) {
+    return res.status(401).json({ error: '认证失败' })
+  }
   
   // 设置 SSE headers
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
   res.setHeader('X-Accel-Buffering', 'no') // 禁用 nginx 缓冲
+  res.setHeader('Access-Control-Allow-Origin', '*')
   
   // 发送初始连接成功消息
-  res.write(`data: ${JSON.stringify({ type: 'connected' })}\n\n`)
+  res.write(`data: ${JSON.stringify({ type: 'connected', userId })}\n\n`)
   
   // 添加到客户端列表
   if (!sseClients.has(userId)) {
     sseClients.set(userId, [])
   }
   sseClients.get(userId)!.push(res)
+  
+  console.log(`SSE connected: ${userId}, total clients: ${sseClients.get(userId)!.length}`)
   
   // 心跳保持连接
   const heartbeat = setInterval(() => {
@@ -60,6 +76,7 @@ router.get('/stream', authMiddleware, (req: AuthRequest, res: Response) => {
     if (clients.length === 0) {
       sseClients.delete(userId)
     }
+    console.log(`SSE disconnected: ${userId}`)
   })
 })
 

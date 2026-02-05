@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import prisma from '../utils/prisma'
+import { sendSSEToUser, broadcastSSE } from './messages'
 
 const router = Router()
 
@@ -140,6 +141,20 @@ router.post('/send-message', async (req, res) => {
         content
       }
     })
+    
+    // 通过 SSE 实时推送消息
+    const sseData = {
+      type: 'new_message',
+      message
+    }
+    
+    if (userId) {
+      // 发送给指定用户
+      sendSSEToUser(userId, sseData)
+    } else {
+      // 广播给所有用户
+      broadcastSSE(sseData)
+    }
     
     res.json({
       message: '发送成功',
