@@ -4,7 +4,7 @@ import OpenAI from 'openai'
 const doubao = new OpenAI({
   apiKey: process.env.DOUBAO_API_KEY || '',
   baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
-  timeout: 30000 // 30 秒超时
+  timeout: 60000 // 60 秒超时（图片识别需要更长时间）
 })
 
 // 豆包模型（统一使用 seed-1.8）
@@ -17,6 +17,9 @@ export async function recognizeFundsFromImage(imageBase64: string): Promise<Arra
   console.log('[doubao] 图片大小:', Math.round(imageBase64.length / 1024), 'KB')
   
   try {
+    console.log('[doubao] 正在调用豆包 API...')
+    const startTime = Date.now()
+    
     const response = await doubao.chat.completions.create({
       model: MODEL,
       messages: [
@@ -46,6 +49,7 @@ export async function recognizeFundsFromImage(imageBase64: string): Promise<Arra
       max_tokens: 1000
     })
 
+    console.log('[doubao] API 调用成功，耗时:', Date.now() - startTime, 'ms')
     const content = response.choices[0]?.message?.content || '[]'
     console.log('[doubao] AI 返回内容:', content)
     
