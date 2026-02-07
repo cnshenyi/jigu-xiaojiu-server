@@ -9,6 +9,7 @@ import adminRoutes from './routes/admin'
 import messageRoutes from './routes/messages'
 import alertRoutes from './routes/alerts'
 import aiRoutes from './routes/ai'
+import watchRoutes from './routes/watch'
 import { startAlertChecker } from './services/alertChecker'
 
 dotenv.config()
@@ -32,6 +33,7 @@ app.use('/api/admin', adminRoutes)
 app.use('/api/messages', messageRoutes)
 app.use('/api/alerts', alertRoutes)
 app.use('/api/ai', aiRoutes)
+app.use('/api/watch', watchRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
