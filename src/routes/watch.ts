@@ -153,4 +153,74 @@ async function fetchTencentFundData(code: string): Promise<{
   }
 }
 
+// 获取基金 top10 重仓股
+// GET /api/watch/stocks/:code
+router.get('/stocks/:code', authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const code = req.params.code
+    if (!code || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: '无效的基金代码' })
+    }
+
+    const stocks = await fetchTopStocks(code)
+    res.json({ code, stocks })
+  } catch (error) {
+    console.error('Watch stocks error:', error)
+    res.status(500).json({ error: '获取重仓股数据失败' })
+  }
+})
+
+// 从天天基金获取 top10 重仓股
+async function fetchTopStocks(code: string): Promise<Array<{ name: string; pct: string }>> {
+  const url = `https://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code=${code}&topline=10`
+
+  const response = await fetch(url, {
+    headers: {
+      'Referer': 'https://fundf10.eastmoney.com/',
+      'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+    }
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+
+  const text = await response.text()
+
+  // 解析 HTML 表格，只取最新一期（第一个 table）
+  const stocks: Array<{ name: string; pct: string }> = []
+
+  // 匹配第一个 tbody 中的行
+  const tbodyMatch = text.match(/<tbody>([\s\S]*?)<\/tbody>/)
+  if (!tbodyMatch) return stocks
+
+  const tbody = tbodyMatch[1]
+  // 匹配每一行: <tr><td>序号</td><td>代码</td><td class='tol'>名称</td>...占净值比例...</tr>
+  const rowRegex = /<tr><td>\d+<\/td><td>.*?<\/td><td class='tol'><a[^>]*>(.*?)<\/a><\/td>.*?<td class='tor'>([\d.]+%)<\/td><td class='tor'>[\d,.]+<\/td><td class='tor last ccs'>[\d,.]+<\/td><\/tr>/g
+
+  let match
+  while ((match = rowRegex.exec(tbody)) !== null) {
+    stocks.push({
+      name: match[1],
+      pct: match[2]
+    })
+  }
+
+  // 如果上面的正则没匹配到（HTML 结构可能变化），用更宽松的方式
+  if (stocks.length === 0) {
+    const looseRegex = /<td class='tol'><a[^>]*>([^<]+)<\/a><\/td>[\s\S]*?<td class='tor'>([\d.]+%)<\/td>/g
+    let looseMatch
+    let count = 0
+    while ((looseMatch = looseRegex.exec(tbody)) !== null && count < 10) {
+      stocks.push({
+        name: looseMatch[1],
+        pct: looseMatch[2]
+      })
+      count++
+    }
+  }
+
+  return stocks
+}
+
 export default router
