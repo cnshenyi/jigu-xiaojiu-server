@@ -157,7 +157,7 @@ async function fetchTencentFundData(code: string): Promise<{
 // GET /api/watch/stocks/:code
 router.get('/stocks/:code', authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
-    const code = req.params.code
+    const code = req.params.code as string
     if (!code || !/^\d{6}$/.test(code)) {
       return res.status(400).json({ error: '无效的基金代码' })
     }
