@@ -6,13 +6,13 @@
     "ARKK": { "name": "ARK创新 ETF", "symbol": "ARKK" }
   },
   "funds": {
-    "006327": { "name": "华宝纳斯达克精选", "benchmark": "QQQ", "weight": 0.95, "currency": "USD" },
+
     "160213": { "name": "国泰纳斯达克100", "benchmark": "QQQ", "weight": 0.95, "currency": "USD" },
     "270042": { "name": "广发纳斯达克100", "benchmark": "QQQ", "weight": 0.95, "currency": "USD" },
     "481012": { "name": "工银瑞信纳斯达克100", "benchmark": "QQQ", "weight": 0.95, "currency": "USD" },
     "164906": { "name": "交银纳斯达克100", "benchmark": "QQQ", "weight": 0.95, "currency": "USD" },
     "110026": { "name": "易方达标普信息科技", "benchmark": "SPY", "weight": 0.90, "currency": "USD" },
-    "501500": { "name": "华夏标普500ETF", "benchmark": "SPY", "weight": 0.95, "currency": "USD" },
+    "513500": { "name": "华夏标普500ETF", "benchmark": "SPY", "weight": 0.95, "currency": "USD" },
     "050025": { "name": "博时标普500ETF", "benchmark": "SPY", "weight": 0.95, "currency": "USD" },
     "162411": { "name": "华宝标普油气", "benchmark": "SPY", "weight": 0.85, "currency": "USD" },
     "040046": { "name": "华安标普全球石油", "benchmark": "SPY", "weight": 0.80, "currency": "USD" },
@@ -20,12 +20,11 @@
     "004752": { "name": "易方达全球成长精选", "benchmark": "QQQ", "weight": 0.75, "currency": "USD" },
     "006479": { "name": "华宝海外科技", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "006624": { "name": "华宝海外新能源汽车", "benchmark": "QQQ", "weight": 0.80, "currency": "USD" },
-    "007721": { "name": "汇添富全球移动互联", "benchmark": "QQQ", "weight": 0.80, "currency": "USD" },
+
     "008763": { "name": "华夏全球科技先锋", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "009102": { "name": "银华海外数字经济", "benchmark": "QQQ", "weight": 0.80, "currency": "USD" },
     "012348": { "name": "天弘全球高端制造", "benchmark": "QQQ", "weight": 0.75, "currency": "USD" },
-    "000614": { "name": "嘉实美国成长", "benchmark": "SPY", "weight": 0.85, "currency": "USD" },
-    "000041": { "name": "华商全球成长", "benchmark": "SPY", "weight": 0.80, "currency": "USD" },
+
     "100061": { "name": "富国全球科技互联网", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "164401": { "name": "国泰大宗商品", "benchmark": "SPY", "weight": 0.70, "currency": "USD" },
     "501021": { "name": "国泰恒生科技ETF", "benchmark": "HSI", "weight": 0.95, "currency": "HKD" },
