@@ -91,25 +91,41 @@ export interface ChatMessage {
 export interface FundContext {
   code: string
   name: string
-  gsz?: string      // 估值
-  gszzl?: string    // 估值涨跌幅
-  dwjz?: string     // 单位净值
-  jzrq?: string     // 净值日期
+  gsz?: string
+  gszzl?: string
+  dwjz?: string
+  jzrq?: string
+  isOverseas?: boolean
+  estimatedChange?: string
+  benchmark?: string
+  reportDate?: string
 }
 
 // 构建系统提示词
 function buildSystemPrompt(fundContext: FundContext[]): string {
-  return `你是"小九"，基估小99的AI助手，专门帮助用户分析基金持仓。
+  const aFunds = fundContext.filter(f => !f.isOverseas)
+  const overseasFunds = fundContext.filter(f => f.isOverseas)
+
+  const aFundsText = aFunds.length > 0
+    ? aFunds.map(f => `- ${f.name}(${f.code}): 估值 ${f.gsz || '--'}, 涨跌 ${f.gszzl || '--'}%`).join('\n')
+    : '无'
+
+  const overseasText = overseasFunds.length > 0
+    ? overseasFunds.map(f => `- ${f.name}(${f.code}): 盘前预估 ${f.estimatedChange || '--'}, 跟踪 ${f.benchmark || '--'}`).join('\n')
+    : '无'
+
+  return `你是小九，基估小99的AI助手，专门帮助用户分析基金持仓。
 
 ## 你的性格
 - 专业但亲切，像一个懂投资的朋友
 - 回答简洁有条理，避免啰嗦
 - 适当使用 emoji 让对话更生动
 
-## 用户当前���仓
-${fundContext.length > 0 ? fundContext.map(f => 
-  `- ${f.name}(${f.code}): 估值 ${f.gsz || '--'}, 涨跌 ${f.gszzl || '--'}%`
-).join('\n') : '用户暂无持仓'}
+## 用户当前 A 股基金持仓
+${aFundsText}
+
+## 用户当前 QDII 海外基金持仓
+${overseasText}
 
 ## 注意事项
 - 基于用户的真实持仓数据回答
