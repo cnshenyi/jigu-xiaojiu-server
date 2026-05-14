@@ -48,6 +48,40 @@ router.get('/known', async (req: AuthRequest, res) => {
   }
 })
 
+// 通过代码或关键词搜索基金（支持自定义添加）
+router.get('/search', async (req: AuthRequest, res) => {
+  try {
+    const { q } = req.query as { q: string }
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({ error: '请输入至少2个字符' })
+    }
+    const keyword = q.trim()
+    const url = `https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx?m=1&key=${encodeURIComponent(keyword)}`
+    const resp = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://fund.eastmoney.com' }
+    })
+    const json = await resp.json() as any
+    const datas = (json.Datas || []) as any[]
+    // 只返回 QDII 相关基金
+    const results = datas
+      .filter((d: any) => {
+        const ftype: string = d.FundBaseInfo?.FTYPE || ''
+        const name: string = d.NAME || ''
+        return ftype.includes('海外') || ftype.includes('QDII') || name.includes('QDII') || name.includes('(QDII')
+      })
+      .slice(0, 10)
+      .map((d: any) => ({
+        code: d.CODE,
+        name: d.NAME,
+        type: d.FundBaseInfo?.FTYPE || ''
+      }))
+    res.json(results)
+  } catch (error) {
+    console.error('Search fund error:', error)
+    res.status(500).json({ error: '搜索失败' })
+  }
+})
+
 // 估算单只基金
 router.get('/estimate/:code', async (req: AuthRequest, res) => {
   try {
