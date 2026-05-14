@@ -22,6 +22,7 @@ model User {
   funds        UserFund[]
   groups       UserGroup[]
   inviteCode   InviteCode[]
+  qdiiFunds    UserQdiiFund[]
   
   @@map("users")
 }
@@ -99,4 +100,19 @@ model AlertSetting {
   
   @@unique([userId, fundCode])
   @@map("alert_settings")
+}
+
+// QDII 海外基金自选表
+model UserQdiiFund {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  fundCode  String   @map("fund_code") @db.VarChar(10)
+  fundName  String   @map("fund_name") @db.VarChar(100)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, fundCode])
+  @@map("user_qdii_funds")
 }

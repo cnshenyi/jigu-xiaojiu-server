@@ -10,6 +10,7 @@ import messageRoutes from './routes/messages'
 import alertRoutes from './routes/alerts'
 import aiRoutes from './routes/ai'
 import watchRoutes from './routes/watch'
+import qdiiRoutes from './routes/qdii'
 import { startAlertChecker } from './services/alertChecker'
 
 dotenv.config()
@@ -34,6 +35,7 @@ app.use('/api/messages', messageRoutes)
 app.use('/api/alerts', alertRoutes)
 app.use('/api/ai', aiRoutes)
 app.use('/api/watch', watchRoutes)
+app.use('/api/qdii', qdiiRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
