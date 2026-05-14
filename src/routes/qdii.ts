@@ -1,11 +1,32 @@
 import { Router } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
 import { getBenchmarks, estimateFunds, estimateFund, getKnownFunds } from '../services/qdii'
+import { getFundHoldings } from '../services/holdings'
 import prisma from '../utils/prisma'
 
 const router = Router()
 
 router.use(authMiddleware)
+
+// 获取基金持仓详情（含实时行情）
+router.get('/holdings/:code', async (req: AuthRequest, res) => {
+  try {
+    const code = req.params.code as string
+    // 从用户自选里找基金名称，找不到就用代码代替
+    const userFund = await prisma.userQdiiFund.findFirst({
+      where: { userId: req.user!.userId, fundCode: code }
+    })
+    const fundName = userFund?.fundName ?? code
+    const result = await getFundHoldings(code, fundName)
+    if (!result) {
+      return res.status(404).json({ error: '暂无持仓数据' })
+    }
+    res.json(result)
+  } catch (error) {
+    console.error('Get holdings error:', error)
+    res.status(500).json({ error: '获取持仓数据失败' })
+  }
+})
 
 // 获取基准指数 + 汇率
 router.get('/benchmarks', async (req: AuthRequest, res) => {
