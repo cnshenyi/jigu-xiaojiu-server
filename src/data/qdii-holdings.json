@@ -21,6 +21,7 @@
     "006479": { "name": "华宝海外科技", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "006624": { "name": "华宝海外新能源汽车", "benchmark": "QQQ", "weight": 0.80, "currency": "USD" },
 
+    "024239": { "name": "华夏全球科技先锋混合", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "008763": { "name": "华夏全球科技先锋", "benchmark": "QQQ", "weight": 0.85, "currency": "USD" },
     "009102": { "name": "银华海外数字经济", "benchmark": "QQQ", "weight": 0.80, "currency": "USD" },
     "012348": { "name": "天弘全球高端制造", "benchmark": "QQQ", "weight": 0.75, "currency": "USD" },
