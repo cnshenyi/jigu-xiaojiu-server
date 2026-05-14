@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { authMiddleware, AuthRequest } from '../middleware/auth'
-import { getBenchmarks, estimateFunds, estimateFund, getKnownFunds } from '../services/qdii'
+import { getBenchmarks, estimateFunds, estimateFund } from '../services/qdii'
 import { getFundHoldings } from '../services/holdings'
 import prisma from '../utils/prisma'
 
@@ -36,15 +36,6 @@ router.get('/benchmarks', async (req: AuthRequest, res) => {
   } catch (error) {
     console.error('Get benchmarks error:', error)
     res.status(500).json({ error: '获取指数数据失败' })
-  }
-})
-
-// 获取所有已知 QDII 基金列表（用于搜索/添加）
-router.get('/known', async (req: AuthRequest, res) => {
-  try {
-    res.json(getKnownFunds())
-  } catch (error) {
-    res.status(500).json({ error: '获取基金列表失败' })
   }
 })
 

@@ -167,26 +167,22 @@ export async function getBenchmarks() {
 
 // 估算单只 QDII 基金涨跌幅
 export async function estimateFund(code: string): Promise<EstimateResult | null> {
-  let fundInfo = (holdings.funds as any)[code]
+  let fundInfo: any = null
 
-  // 不在预置列表时，从持仓数据动态推断
-  if (!fundInfo) {
-    try {
-      const holdingData = await getFundHoldings(code, code)
-      if (!holdingData || holdingData.stocks.length === 0) return null
+  try {
+    const holdingData = await getFundHoldings(code, code)
+    if (!holdingData || holdingData.stocks.length === 0) return null
 
-      // 根据持仓市场推断 benchmark 和 currency
-      const markets = holdingData.stocks.map(s => s.market)
-      const usCount = markets.filter(m => m === 'US').length
-      const hkCount = markets.filter(m => m === 'HK').length
+    const markets = holdingData.stocks.map(s => s.market)
+    const usCount = markets.filter(m => m === 'US').length
+    const hkCount = markets.filter(m => m === 'HK').length
 
-      const currency = hkCount > usCount ? 'HKD' : 'USD'
-      const benchmark = hkCount > usCount ? '^HSI' : 'QQQ'
+    const currency = hkCount > usCount ? 'HKD' : 'USD'
+    const benchmark = hkCount > usCount ? '^HSI' : 'QQQ'
 
-      fundInfo = { name: holdingData.fundName, benchmark, weight: 0.80, currency }
-    } catch {
-      return null
-    }
+    fundInfo = { name: holdingData.fundName, benchmark, weight: 0.80, currency }
+  } catch {
+    return null
   }
 
   const { benchmarks, rates } = await getCache()
@@ -222,14 +218,4 @@ export async function estimateFund(code: string): Promise<EstimateResult | null>
 export async function estimateFunds(codes: string[]): Promise<EstimateResult[]> {
   const results = await Promise.all(codes.map(code => estimateFund(code)))
   return results.filter(Boolean) as EstimateResult[]
-}
-
-// 获取所有已知 QDII 基金列表
-export function getKnownFunds() {
-  return Object.entries(holdings.funds as any).map(([code, info]: [string, any]) => ({
-    code,
-    name: info.name,
-    benchmark: info.benchmark,
-    currency: info.currency
-  }))
 }
