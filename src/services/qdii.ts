@@ -166,9 +166,24 @@ export async function getBenchmarks() {
 }
 
 // 估算单只 QDII 基金涨跌幅
-export async function estimateFund(code: string): Promise<EstimateResult | null> {
+export async function estimateFund(code: string, fundName?: string): Promise<EstimateResult | null> {
   try {
-    const holdingData = await getFundHoldings(code, code)
+    // 如果没有传名称，从天天基金搜索接口获取
+    let name = fundName
+    if (!name) {
+      try {
+        const resp = await fetch(`https://fundsuggest.eastmoney.com/FundSearch/api/FundSearchAPI.ashx?m=1&key=${encodeURIComponent(code)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://fund.eastmoney.com' }
+        })
+        const json = await resp.json() as any
+        const match = (json.Datas || []).find((d: any) => d.CODE === code)
+        name = match?.NAME ?? code
+      } catch {
+        name = code
+      }
+    }
+
+    const holdingData = await getFundHoldings(code, name ?? code)
     if (!holdingData || holdingData.stocks.length === 0) return null
     if (holdingData.estimatedChange === null) return null
 
@@ -201,7 +216,7 @@ export async function estimateFund(code: string): Promise<EstimateResult | null>
 }
 
 // 批量估算
-export async function estimateFunds(codes: string[]): Promise<EstimateResult[]> {
-  const results = await Promise.all(codes.map(code => estimateFund(code)))
+export async function estimateFunds(funds: { code: string; name: string }[]): Promise<EstimateResult[]> {
+  const results = await Promise.all(funds.map(f => estimateFund(f.code, f.name)))
   return results.filter(Boolean) as EstimateResult[]
 }

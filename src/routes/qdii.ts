@@ -95,8 +95,8 @@ router.get('/funds', async (req: AuthRequest, res) => {
       orderBy: { sortOrder: 'asc' }
     })
 
-    const codes = userFunds.map(f => f.fundCode)
-    const estimates = await estimateFunds(codes)
+    const fundsWithNames = userFunds.map(f => ({ code: f.fundCode, name: f.fundName }))
+    const estimates = await estimateFunds(fundsWithNames)
 
     // 合并用户自选和估值数据
     const result = userFunds.map(f => {
