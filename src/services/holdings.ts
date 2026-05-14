@@ -23,7 +23,7 @@ export interface FundHoldings {
 const holdingsCache = new Map<string, { data: FundHoldings; expiry: number }>()
 const quoteCache = new Map<string, { change: number; expiry: number }>()
 
-const HOLDINGS_TTL = 24 * 60 * 60 * 1000
+const HOLDINGS_TTL = 6 * 60 * 60 * 1000
 const QUOTE_TTL = 5 * 60 * 1000
 
 // 判断市场类型
