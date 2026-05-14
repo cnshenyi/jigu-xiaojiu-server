@@ -167,50 +167,36 @@ export async function getBenchmarks() {
 
 // 估算单只 QDII 基金涨跌幅
 export async function estimateFund(code: string): Promise<EstimateResult | null> {
-  let fundInfo: any = null
-
   try {
     const holdingData = await getFundHoldings(code, code)
     if (!holdingData || holdingData.stocks.length === 0) return null
+    if (holdingData.estimatedChange === null) return null
 
     const markets = holdingData.stocks.map(s => s.market)
-    const usCount = markets.filter(m => m === 'US').length
     const hkCount = markets.filter(m => m === 'HK').length
-
-    const currency = hkCount > usCount ? 'HKD' : 'USD'
+    const usCount = markets.filter(m => m === 'US').length
     const benchmark = hkCount > usCount ? '^HSI' : 'QQQ'
 
-    fundInfo = { name: holdingData.fundName, benchmark, weight: 0.80, currency }
+    const { benchmarks } = await getCache()
+    const benchmarkSymbol = Object.values(holdings.benchmarks).find(
+      (b: any) => b.symbol === benchmark
+    ) as any
+    const symbol = benchmarkSymbol?.symbol ?? benchmark
+    const benchmarkData = benchmarks[symbol]
+
+    return {
+      code,
+      name: holdingData.fundName,
+      benchmark: symbol,
+      benchmarkName: benchmarkData?.name ?? symbol,
+      estimatedChange: Math.round(holdingData.estimatedChange * 100) / 100,
+      benchmarkChange: Math.round((benchmarkData?.changePercent ?? 0) * 100) / 100,
+      rateChange: 0,
+      updatedAt: holdingData.updatedAt,
+      isMarketOpen: isUSMarketOpen()
+    }
   } catch {
     return null
-  }
-
-  const { benchmarks, rates } = await getCache()
-  const benchmarkSymbol = Object.values(holdings.benchmarks).find(
-    (b: any) => b.symbol === fundInfo.benchmark || b.symbol.replace('^', '') === fundInfo.benchmark
-  ) as any
-
-  const symbol = benchmarkSymbol?.symbol ?? fundInfo.benchmark
-  const benchmarkData = benchmarks[symbol]
-  if (!benchmarkData) return null
-
-  const rateChange = fundInfo.currency === 'HKD'
-    ? (rates?.HKDCNY ?? 0)
-    : (rates?.USDCNY ?? 0)
-
-  // 预估涨跌 = 基准涨跌 × 持仓权重 + 汇率变动 × 持仓权重
-  const estimatedChange = (benchmarkData.changePercent + rateChange) * fundInfo.weight
-
-  return {
-    code,
-    name: fundInfo.name,
-    benchmark: symbol,
-    benchmarkName: benchmarkData.name,
-    estimatedChange: Math.round(estimatedChange * 100) / 100,
-    benchmarkChange: Math.round(benchmarkData.changePercent * 100) / 100,
-    rateChange: Math.round(rateChange * 100) / 100,
-    updatedAt: benchmarkData.updatedAt,
-    isMarketOpen: isUSMarketOpen()
   }
 }
 
