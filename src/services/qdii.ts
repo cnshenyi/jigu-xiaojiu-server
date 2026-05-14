@@ -11,6 +11,8 @@ interface BenchmarkData {
 interface ExchangeRate {
   USDCNY: number
   HKDCNY: number
+  USDCNYPrice: number
+  HKDCNYPrice: number
   updatedAt: number
 }
 
@@ -114,6 +116,8 @@ async function fetchExchangeRates(): Promise<ExchangeRate | null> {
     return {
       USDCNY: usdPrice > 0 ? ((usdPrice - usdPrev) / usdPrev) * 100 : 0,
       HKDCNY: hkdPrice > 0 ? ((hkdPrice - hkdPrev) / hkdPrev) * 100 : 0,
+      USDCNYPrice: usdPrice,
+      HKDCNYPrice: hkdPrice,
       updatedAt: Date.now()
     }
   } catch (e) {
