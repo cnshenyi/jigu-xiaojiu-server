@@ -83,21 +83,24 @@ async function fetchHoldingsFromEastmoney(fundCode: string): Promise<{ stocks: O
 
       // 提取股票代码（从 href 中）
       const codeMatch = row.match(/quote\.eastmoney\.com\/unify\/r\/(\d+\.[A-Z0-9]+)/i)
-      if (!codeMatch) continue
-      const rawCode = codeMatch[1]
+      const rawCode = codeMatch ? codeMatch[1] : ''
 
-      // 提取股票名称
-      const nameMatch = row.match(/line-height:18px[^>]*><a[^>]*>([^<]+)<\/a>/)
+      // 提取股票名称（兑容 toc/tol 两种格式，以及无链接的 span 格式）
+      const nameMatch = row.match(/line-height:18px[^>]*><a[^>]*>([^<]+)<\/a>/) ||
+                        row.match(/class='tol'><a[^>]*>([^<]+)<\/a>/) ||
+                        row.match(/line-height:18px[^>]*><span>([^<]+)<\/span>/)
       if (!nameMatch) continue
       const name = nameMatch[1].trim()
 
-      // 提取占净值比例（最后一个 toc td 中的百分比）
-      const weightMatches = row.match(/<td class='toc'>(\d+\.?\d*)%<\/td>/)
+      // 提取占净值比例（兑容 toc 和 tor 两种格式）
+      const weightMatches = row.match(/<td class='toc'>(\d+\.?\d*)%<\/td>/) ||
+                            row.match(/<td class='tor'>(\d+\.?\d*)%<\/td>/)
       if (!weightMatches) continue
       const weight = parseFloat(weightMatches[1])
 
-      const market = detectMarket(rawCode)
-      const symbol = normalizeCode(rawCode, market)
+      // 无标准代码的（如越南股）直接记录，行情显示 --
+      const market = rawCode ? detectMarket(rawCode) : 'A' as const
+      const symbol = rawCode ? normalizeCode(rawCode, market) : name
 
       stocks.push({ rank: i + 1, stockCode: rawCode, symbol, name, weight, market })
     }
