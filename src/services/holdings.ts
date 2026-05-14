@@ -36,10 +36,10 @@ function detectMarket(rawCode: string): 'HK' | 'US' | 'A' {
 
 // 标准化股票代码
 function normalizeCode(rawCode: string, market: 'HK' | 'US' | 'A'): string {
-  const code = rawCode.split('.')[1] ?? rawCode
+  const code = rawCode.split('.').slice(1).join('.') // 取 . 后面的部分
   if (market === 'HK') return `hk${code}`
-  if (market === 'A') return code
-  return code  // 美股代码需要从名称映射，后面处理
+  if (market === 'US') return code  // 直接用 AAPL / MSFT 等
+  return code
 }
 
 // 抓取天天基金持仓数据
@@ -82,7 +82,7 @@ async function fetchHoldingsFromEastmoney(fundCode: string): Promise<{ stocks: O
       const row = rows[i]
 
       // 提取股票代码（从 href 中）
-      const codeMatch = row.match(/quote\.eastmoney\.com\/unify\/r\/([\d.]+)/)
+      const codeMatch = row.match(/quote\.eastmoney\.com\/unify\/r\/(\d+\.[A-Z0-9]+)/i)
       if (!codeMatch) continue
       const rawCode = codeMatch[1]
 
