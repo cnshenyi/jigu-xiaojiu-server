@@ -1,4 +1,5 @@
 import holdings from '../data/qdii-holdings.json'
+import { getFundHoldings } from './holdings'
 
 interface BenchmarkData {
   symbol: string
@@ -166,8 +167,27 @@ export async function getBenchmarks() {
 
 // 估算单只 QDII 基金涨跌幅
 export async function estimateFund(code: string): Promise<EstimateResult | null> {
-  const fundInfo = (holdings.funds as any)[code]
-  if (!fundInfo) return null
+  let fundInfo = (holdings.funds as any)[code]
+
+  // 不在预置列表时，从持仓数据动态推断
+  if (!fundInfo) {
+    try {
+      const holdingData = await getFundHoldings(code, code)
+      if (!holdingData || holdingData.stocks.length === 0) return null
+
+      // 根据持仓市场推断 benchmark 和 currency
+      const markets = holdingData.stocks.map(s => s.market)
+      const usCount = markets.filter(m => m === 'US').length
+      const hkCount = markets.filter(m => m === 'HK').length
+
+      const currency = hkCount > usCount ? 'HKD' : 'USD'
+      const benchmark = hkCount > usCount ? '^HSI' : 'QQQ'
+
+      fundInfo = { name: holdingData.fundName, benchmark, weight: 0.80, currency }
+    } catch {
+      return null
+    }
+  }
 
   const { benchmarks, rates } = await getCache()
   const benchmarkSymbol = Object.values(holdings.benchmarks).find(
