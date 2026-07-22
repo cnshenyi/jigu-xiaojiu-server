@@ -125,4 +125,58 @@ router.put('/order', async (req: AuthRequest, res) => {
   }
 })
 
+// 代理获取单支基金估值（前端 CORS 被拦截时使用）
+// GET /api/funds/:code/valuation
+router.get('/:code/valuation', async (req: AuthRequest, res) => {
+  try {
+    const code = req.params.code as string
+    if (!code || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: '无效的基金代码' })
+    }
+
+    const url = `https://fundcomapi.tiantianfunds.com/mm/newCore/FundValuationLast?FCODES=${encodeURIComponent(code)}&FIELDS=FCODE,SHORTNAME,GSZZL,GZTIME,GSZ,NAV,PDATE`
+    const response = await fetch(url, {
+      headers: {
+        'Referer': 'https://fund.eastmoney.com/',
+        'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+      }
+    })
+
+    if (!response.ok) {
+      return res.status(502).json({ error: `上游接口异常: HTTP ${response.status}` })
+    }
+
+    const json = await response.json() as {
+      success: boolean
+      data: Array<{
+        FCODE: string
+        SHORTNAME: string
+        GSZZL: number | null
+        GZTIME: string | null
+        GSZ: number | null
+        NAV: number | null
+        PDATE: string | null
+      }>
+    }
+
+    if (!json.success || !Array.isArray(json.data) || json.data.length === 0) {
+      return res.status(404).json({ error: '未找到基金数据' })
+    }
+
+    const item = json.data[0]
+    res.json({
+      FCODE: item.FCODE,
+      SHORTNAME: item.SHORTNAME,
+      GSZZL: item.GSZZL,
+      GZTIME: item.GZTIME,
+      GSZ: item.GSZ,
+      NAV: item.NAV,
+      PDATE: item.PDATE,
+    })
+  } catch (error) {
+    console.error('Fund valuation proxy error:', error)
+    res.status(500).json({ error: '获取估值数据失败' })
+  }
+})
+
 export default router
