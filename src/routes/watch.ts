@@ -23,7 +23,7 @@ router.get('/funds', authMiddleware, async (req: AuthRequest, res: Response) => 
 
     // 2. 批量获取所有基金的估值数据（腾讯财经，一次请求）
     const codes = userFunds.map(uf => uf.fundCode)
-    const fundDataMap = await fetchTencentFundsBatch(codes)
+    const fundDataMap = await fetchTiantianFundsBatch(codes)
 
     const funds = userFunds.map((uf) => {
       const data = fundDataMap.get(uf.fundCode) || {}
@@ -48,10 +48,11 @@ router.get('/funds', authMiddleware, async (req: AuthRequest, res: Response) => 
   }
 })
 
-// 从腾讯财经批量获取基金数据
-// 字段格式: code~name~gsz~gszzl~[4]~dwjz~累计净值~zzl~jzrq~
-// 交易时间内 gsz/gszzl 为实时估值；收市后为 0
-async function fetchTencentFundsBatch(codes: string[]): Promise<Map<string, {
+// 从天天基金新接口批量获取基金估值数据
+// 接口: https://fundcomapi.tiantianfunds.com/mm/newCore/FundValuationLast
+// 替代已挂掉的 fundgz.1234567.com.cn JSONP 接口
+// 交易时间内 GSZZL/GSZ 有实时估值；收市后为 null
+async function fetchTiantianFundsBatch(codes: string[]): Promise<Map<string, {
   gszzl?: string
   gsz?: string
   dwjz?: string
@@ -61,43 +62,57 @@ async function fetchTencentFundsBatch(codes: string[]): Promise<Map<string, {
   const result = new Map<string, { gszzl?: string; gsz?: string; dwjz?: string; jzrq?: string; gztime?: string }>()
   if (codes.length === 0) return result
 
-  // 腾讯支持批量查询，用逗号分隔，单次最多 100 支
   const BATCH_SIZE = 50
+  const FIELDS = 'FCODE,SHORTNAME,GSZZL,GZTIME,GSZ,NAV,PDATE'
+
   for (let i = 0; i < codes.length; i += BATCH_SIZE) {
     const batch = codes.slice(i, i + BATCH_SIZE)
-    const query = batch.map(c => `jj${c}`).join(',')
-    const url = `https://qt.gtimg.cn/q=${query}`
+    const url = `https://fundcomapi.tiantianfunds.com/mm/newCore/FundValuationLast?FCODES=${encodeURIComponent(batch.join(','))}&FIELDS=${encodeURIComponent(FIELDS)}`
 
-    const response = await fetch(url, {
-      headers: {
-        'Referer': 'https://gu.qq.com/',
-        'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Referer': 'https://fund.eastmoney.com/',
+          'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+        }
+      })
+
+      if (!response.ok) {
+        console.error(`天天基金估值接口异常: HTTP ${response.status}`)
+        continue
       }
-    })
 
-    if (!response.ok) {
-      console.error(`腾讯财经批量接口异常: HTTP ${response.status}`)
-      continue
-    }
+      const json = await response.json() as {
+        success: boolean
+        data: Array<{
+          FCODE: string
+          GSZ: number | null
+          GSZZL: number | null
+          GZTIME: string | null
+          NAV: number | null
+          PDATE: string | null
+        }>
+      }
 
-    // 响应为 GBK 编码
-    const buf = await response.arrayBuffer()
-    const text = new TextDecoder('gbk').decode(buf)
+      if (!json.success || !Array.isArray(json.data)) {
+        console.error('天天基金估值接口返回异常')
+        continue
+      }
 
-    // 逐条解析: v_jjCODE="fields~"
-    const lineRe = /v_jj(\d+)="([^"]*)"/g
-    let m: RegExpExecArray | null
-    while ((m = lineRe.exec(text)) !== null) {
-      const code = m[1]
-      const parts = m[2].split('~')
-      if (parts.length < 9) continue
+      for (const item of json.data) {
+        const code = item.FCODE?.trim()
+        if (!code) continue
 
-      const gsz = parts[2] && parts[2] !== '0.0000' ? parts[2] : undefined
-      const gszzl = parts[3] && parts[3] !== '0.0000' ? parts[3] : undefined
-      const dwjz = parts[5] || undefined
-      const jzrq = parts[8] ? parts[8].slice(0, 10) : undefined
-
-      result.set(code, { gsz, gszzl, dwjz, jzrq, gztime: undefined })
+        result.set(code, {
+          gsz: item.GSZ != null ? String(item.GSZ) : undefined,
+          gszzl: item.GSZZL != null ? String(item.GSZZL) : undefined,
+          dwjz: item.NAV != null ? String(item.NAV) : undefined,
+          jzrq: item.PDATE ? item.PDATE.slice(0, 10) : undefined,
+          gztime: item.GZTIME ?? undefined,
+        })
+      }
+    } catch (e) {
+      console.error(`天天基金估值接口请求失败:`, e)
     }
   }
 
