@@ -21,34 +21,22 @@ router.get('/funds', authMiddleware, async (req: AuthRequest, res: Response) => 
       return res.json({ funds: [], updatedAt: new Date().toISOString() })
     }
 
-    // 2. 并行获取所有基金的估值数据
-    const fundDataPromises = userFunds.map(async (uf) => {
-      try {
-        const data = await fetchFundEstimation(uf.fundCode)
-        return {
-          code: uf.fundCode,
-          name: uf.fundName,
-          gszzl: data.gszzl || null,    // 估算涨跌幅
-          gsz: data.gsz || null,        // 估算净值
-          dwjz: data.dwjz || null,      // 单位净值（最新确权）
-          jzrq: data.jzrq || null,      // 净值日期
-          gztime: data.gztime || null,   // 估值时间
-        }
-      } catch (e) {
-        console.error(`获取基金 ${uf.fundCode} 数据失败:`, e)
-        return {
-          code: uf.fundCode,
-          name: uf.fundName,
-          gszzl: null,
-          gsz: null,
-          dwjz: null,
-          jzrq: null,
-          gztime: null,
-        }
+    // 2. 批量获取所有基金的估值数据（腾讯财经，一次请求）
+    const codes = userFunds.map(uf => uf.fundCode)
+    const fundDataMap = await fetchTencentFundsBatch(codes)
+
+    const funds = userFunds.map((uf) => {
+      const data = fundDataMap.get(uf.fundCode) || {}
+      return {
+        code: uf.fundCode,
+        name: uf.fundName,
+        gszzl: data.gszzl || null,    // 估算涨跌幅（交易时间内有值）
+        gsz: data.gsz || null,        // 估算净值（交易时间内有值）
+        dwjz: data.dwjz || null,      // 单位净值（最新确权）
+        jzrq: data.jzrq || null,      // 净值日期
+        gztime: data.gztime || null,  // 估值时间（腾讯接口暂无）
       }
     })
-
-    const funds = await Promise.all(fundDataPromises)
 
     res.json({
       funds,
@@ -60,97 +48,60 @@ router.get('/funds', authMiddleware, async (req: AuthRequest, res: Response) => 
   }
 })
 
-// 从天天基金获取估值数据（服务端版本，不用 JSONP）
-async function fetchFundEstimation(code: string): Promise<{
+// 从腾讯财经批量获取基金数据
+// 字段格式: code~name~gsz~gszzl~[4]~dwjz~累计净值~zzl~jzrq~
+// 交易时间内 gsz/gszzl 为实时估值；收市后为 0
+async function fetchTencentFundsBatch(codes: string[]): Promise<Map<string, {
   gszzl?: string
   gsz?: string
   dwjz?: string
   jzrq?: string
   gztime?: string
-}> {
-  // 天天基金的 JSONP 接口，服务端直接请求并解析
-  const url = `https://fundgz.1234567.com.cn/js/${code}.js?rt=${Date.now()}`
+}>> {
+  const result = new Map<string, { gszzl?: string; gsz?: string; dwjz?: string; jzrq?: string; gztime?: string }>()
+  if (codes.length === 0) return result
 
-  const response = await fetch(url, {
-    headers: {
-      'Referer': 'https://fund.eastmoney.com/',
-      'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+  // 腾讯支持批量查询，用逗号分隔，单次最多 100 支
+  const BATCH_SIZE = 50
+  for (let i = 0; i < codes.length; i += BATCH_SIZE) {
+    const batch = codes.slice(i, i + BATCH_SIZE)
+    const query = batch.map(c => `jj${c}`).join(',')
+    const url = `https://qt.gtimg.cn/q=${query}`
+
+    const response = await fetch(url, {
+      headers: {
+        'Referer': 'https://gu.qq.com/',
+        'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+      }
+    })
+
+    if (!response.ok) {
+      console.error(`腾讯财经批量接口异常: HTTP ${response.status}`)
+      continue
     }
-  })
 
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
-  }
+    // 响应为 GBK 编码
+    const buf = await response.arrayBuffer()
+    const text = new TextDecoder('gbk').decode(buf)
 
-  const text = await response.text()
+    // 逐条解析: v_jjCODE="fields~"
+    const lineRe = /v_jj(\d+)="([^"]*)"/g
+    let m: RegExpExecArray | null
+    while ((m = lineRe.exec(text)) !== null) {
+      const code = m[1]
+      const parts = m[2].split('~')
+      if (parts.length < 9) continue
 
-  // 解析 jsonpgz({...}) 格式
-  const match = text.match(/jsonpgz\((.+)\)/)
-  if (!match) {
-    throw new Error('无法解析基金数据')
-  }
+      const gsz = parts[2] && parts[2] !== '0.0000' ? parts[2] : undefined
+      const gszzl = parts[3] && parts[3] !== '0.0000' ? parts[3] : undefined
+      const dwjz = parts[5] || undefined
+      const jzrq = parts[8] ? parts[8].slice(0, 10) : undefined
 
-  const data = JSON.parse(match[1])
-
-  // 同时获取腾讯的最新确权净值
-  let tencentData: { dwjz?: string; jzrq?: string; zzl?: number } = {}
-  try {
-    tencentData = await fetchTencentFundData(code)
-  } catch (e) {
-    // 腾讯数据获取失败不影响主流程
-  }
-
-  // 合并数据：腾讯的净值日期更新时优先使用
-  let dwjz = data.dwjz
-  let jzrq = data.jzrq || ''
-
-  if (tencentData.jzrq && (!jzrq || tencentData.jzrq >= jzrq)) {
-    dwjz = tencentData.dwjz || dwjz
-    jzrq = tencentData.jzrq
-  }
-
-  return {
-    gszzl: data.gszzl,
-    gsz: data.gsz,
-    dwjz,
-    jzrq,
-    gztime: data.gztime,
-  }
-}
-
-// 从腾讯财经获取最新确权净值（服务端版本）
-async function fetchTencentFundData(code: string): Promise<{
-  dwjz?: string
-  jzrq?: string
-  zzl?: number
-}> {
-  const url = `https://qt.gtimg.cn/q=jj${code}`
-
-  const response = await fetch(url, {
-    headers: {
-      'Referer': 'https://gu.qq.com/',
-      'User-Agent': 'Mozilla/5.0 (compatible; JiguWatch/1.0)'
+      result.set(code, { gsz, gszzl, dwjz, jzrq, gztime: undefined })
     }
-  })
-
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`)
   }
 
-  const text = await response.text()
-
-  // 解析格式: v_jj000001="...~净值~...~涨跌幅~净值日期~..."
-  const match = text.match(/v_jj\d+="(.+)"/)
-  if (!match) return {}
-
-  const parts = match[1].split('~')
-  if (parts.length <= 8) return {}
-
-  return {
-    dwjz: parts[5] || undefined,
-    zzl: parts[7] ? parseFloat(parts[7]) : undefined,
-    jzrq: parts[8] ? parts[8].slice(0, 10) : undefined,
-  }
+  return result
 }
 
 // 获取基金 top10 重仓股
